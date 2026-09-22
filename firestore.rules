@@ -1,0 +1,163 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- User Profile Rules ---
+    function isValidUser(data) {
+      return data.uid == request.auth.uid
+        && data.email is string && data.email.size() <= 256
+        && (data.displayName == null || (data.displayName is string && data.displayName.size() <= 100))
+        && (data.preferredTimeSystem == 'dragon9' || data.preferredTimeSystem == 'standard');
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'preferredTimeSystem']);
+    }
+
+    // --- Account Rules ---
+    function isValidAccount(data) {
+      return data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() <= 50
+        && data.balance is number
+        && data.currency in ['USD', 'EUR', 'GBP', 'JPY', 'D9C']
+        && data.type in ['savings', 'checking', 'sovereign_vault', 'digital_wallet', 'ecosystem_vault'];
+    }
+
+    match /accounts/{accountId} {
+      allow get: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidAccount(incoming()) && incoming().ownerId == request.auth.uid;
+      allow update: if isSignedIn() && existing().ownerId == request.auth.uid && isValidAccount(incoming())
+        && incoming().balance == existing().balance
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'type', 'currency']);
+    }
+
+    // --- Income Stream Rules ---
+    function isValidIncomeStream(data) {
+      return data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() <= 50
+        && data.frequency in ['one-time', 'recurring']
+        && data.status in ['active', 'paused', 'archived'];
+    }
+
+    match /income_streams/{streamId} {
+      allow read: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidIncomeStream(incoming()) && incoming().ownerId == request.auth.uid;
+      allow update: if isSignedIn() && existing().ownerId == request.auth.uid && isValidIncomeStream(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'frequency', 'status', 'expectedAmount', 'currency']);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    // --- Transaction Rules ---
+    function isValidTransaction(data) {
+      return data.userId == request.auth.uid
+        && data.accountId is string
+        && data.amount is number && data.amount > 0
+        && data.currency is string
+        && data.type in ['credit', 'debit']
+        && (data.category == null || data.category in ['income', 'expense', 'transfer', 'sovereign_tax'])
+        && data.timestamp == request.time;
+    }
+
+    match /accounts/{accountId}/transactions/{transactionId} {
+      allow list: if isSignedIn() && get(/databases/$(database)/documents/accounts/$(accountId)).data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() 
+        && get(/databases/$(database)/documents/accounts/$(accountId)).data.ownerId == request.auth.uid
+        && isValidTransaction(incoming())
+        && existsAfter(/databases/$(database)/documents/accounts/$(accountId)); // Enforce atomic balance update
+    }
+
+    // --- Health Check Rules ---
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // --- Debt Rules ---
+    function isValidDebt(data) {
+      return data.ownerId == request.auth.uid
+        && data.debtorName is string
+        && data.amount is number
+        && data.status in ['pending', 'active_recovery', 'recovered', 'defaulted'];
+    }
+
+    match /debts/{debtId} {
+      allow read: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidDebt(incoming()) && incoming().ownerId == request.auth.uid;
+      allow update: if isSignedIn() && existing().ownerId == request.auth.uid && isValidDebt(incoming())
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['debtorName', 'amount', 'currency'])
+          || (incoming().authorizedBy in ['Timothy', 'Misaki'])
+        );
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    // --- Recovery Team Rules ---
+    match /recovery_teams/{teamId} {
+      allow read: if isSignedIn();
+    }
+    
+    // --- Legal Rules ---
+    function isValidLegalCase(data) {
+      return data.ownerId == request.auth.uid
+        && data.title is string
+        && data.type in ['corruption_recovery', 'asset_withdrawal', 'sovereign_litigation']
+        && data.status in ['active', 'disputed', 'resolved'];
+    }
+
+    match /legal_cases/{caseId} {
+      allow read: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidLegalCase(incoming()) && incoming().ownerId == request.auth.uid;
+      allow update: if isSignedIn() && existing().ownerId == request.auth.uid && isValidLegalCase(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'status', 'representedEntities', 'magnitude', 'currency', 'description']);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+
+    match /legal_cases/{caseId}/correspondence/{msgId} {
+      allow read: if isSignedIn() && get(/databases/$(database)/documents/legal_cases/$(caseId)).data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && get(/databases/$(database)/documents/legal_cases/$(caseId)).data.ownerId == request.auth.uid;
+    }
+
+    // --- Document Rules ---
+    function isValidDocument(data) {
+      return data.ownerId == request.auth.uid
+        && data.name is string
+        && data.type in ['account_proof', 'legal_evidence', 'invoice', 'sovereign_filing']
+        && (data.status == null || data.status in ['draft', 'verified', 'filed']);
+    }
+
+    match /documents/{documentId} {
+      allow read: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow create: if isSignedIn() && isValidDocument(incoming()) && incoming().ownerId == request.auth.uid;
+      allow update: if isSignedIn() && existing().ownerId == request.auth.uid && isValidDocument(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'status', 'associatedId', 'associatedType', 'url']);
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "Sovereign Bank Manager",
+  "description": "A sophisticated banking orchestration suite for the Dragon 9 synchronized time system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

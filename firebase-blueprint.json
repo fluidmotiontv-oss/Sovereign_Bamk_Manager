@@ -1,0 +1,185 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Store user preferences and sovereign identity.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "preferredTimeSystem": { "type": "string", "enum": ["dragon9", "standard"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Account": {
+      "title": "Bank Account",
+      "description": "Represents a sovereign account in the Dragon 9 system.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 50 },
+        "balance": { "type": "number" },
+        "currency": { "type": "string", "enum": ["USD", "EUR", "GBP", "JPY", "D9C"] },
+        "type": { "type": "string", "enum": ["savings", "checking", "sovereign_vault", "digital_wallet", "ecosystem_vault"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "balance", "type", "currency"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "A ledger entry for account activity.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "accountId": { "type": "string" },
+        "userId": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "type": { "type": "string", "enum": ["credit", "debit"] },
+        "category": { "type": "string", "enum": ["income", "expense", "transfer", "sovereign_tax"] },
+        "incomeStreamId": { "type": "string" },
+        "description": { "type": "string", "maxLength": 200 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "dragon9Timestamp": { "type": "string" }
+      },
+      "required": ["accountId", "userId", "amount", "type", "timestamp", "currency"]
+    },
+    "IncomeStream": {
+      "title": "Income Stream",
+      "description": "Represents a specific source of sovereign income.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string", "maxLength": 50 },
+        "frequency": { "type": "string", "enum": ["one-time", "recurring"] },
+        "expectedAmount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "paused", "archived"] },
+        "lastProcessedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "frequency", "status"]
+    },
+    "Debt": {
+      "title": "Debt Registry",
+      "description": "Tracks sovereign debts and recovery status.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "debtorName": { "type": "string" },
+        "amount": { "type": "number" },
+        "currency": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "active_recovery", "recovered", "defaulted"] },
+        "assignedTeamId": { "type": "string" },
+        "authorizedBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "debtorName", "amount", "status", "currency"]
+    },
+    "RecoveryTeam": {
+      "title": "Recovery Team",
+      "description": "Specialized teams for sovereign debt recovery.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "specialization": { "type": "string" },
+        "efficiency": { "type": "number" }
+      },
+      "required": ["name", "specialization"]
+    },
+    "LegalCase": {
+      "title": "Legal Case",
+      "description": "Tracks executive legal representation for sovereign entities.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string", "enum": ["corruption_recovery", "asset_withdrawal", "sovereign_litigation"] },
+        "status": { "type": "string", "enum": ["active", "disputed", "resolved"] },
+        "representedEntities": { "type": "array", "items": { "type": "string" } },
+        "magnitude": { "type": "number" },
+        "currency": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "title", "type", "status"]
+    },
+    "LegalCorrespondence": {
+      "title": "Legal Correspondence",
+      "description": "Formal communications and legal notices.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "caseId": { "type": "string" },
+        "sender": { "type": "string" },
+        "recipient": { "type": "string" },
+        "subject": { "type": "string" },
+        "body": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["caseId", "sender", "recipient", "subject", "body"]
+    },
+    "EvidenceDocument": {
+      "title": "Evidence Document",
+      "description": "Evidence and legal filings for accounts and cases.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["account_proof", "legal_evidence", "invoice", "sovereign_filing"] },
+        "associatedId": { "type": "string" },
+        "associatedType": { "type": "string", "enum": ["account", "legal_case"] },
+        "url": { "type": "string" },
+        "status": { "type": "string", "enum": ["draft", "verified", "filed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "name", "type", "url"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/documents/{documentId}": {
+      "schema": "EvidenceDocument",
+      "description": "Sovereign filing system"
+    },
+    "/legal_cases/{caseId}": {
+      "schema": "LegalCase",
+      "description": "Active legal cases"
+    },
+    "/legal_cases/{caseId}/correspondence/{msgId}": {
+      "schema": "LegalCorrespondence",
+      "description": "Case-specific legal communications"
+    },
+    "/income_streams/{streamId}": {
+      "schema": "IncomeStream",
+      "description": "Registered income streams"
+    },
+    "/debts/{debtId}": {
+      "schema": "Debt",
+      "description": "Registered debts"
+    },
+    "/recovery_teams/{teamId}": {
+      "schema": "RecoveryTeam",
+      "description": "Available recovery teams"
+    },
+    "/accounts/{accountId}": {
+      "schema": "Account",
+      "description": "Global account registry"
+    },
+    "/accounts/{accountId}/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "Transaction ledger for a specific account"
+    }
+  }
+}
